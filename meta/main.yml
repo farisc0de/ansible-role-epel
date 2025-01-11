@@ -1,7 +1,8 @@
 ---
 galaxy_info:
   role_name: "epel"
-  author: farisc0de
+  namespace: "farisc0de"
+  author: Faris Alotaibi
   description: "Enable EPEL and CodeReady on Red Hat"
   license: MIT
   min_ansible_version: "2.9"
