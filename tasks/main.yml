@@ -1,40 +1,52 @@
 ---
-- name: Check if EPEL repo is already configured.
-  stat:
+# Check if EPEL repository is already configured
+- name: Check EPEL repository configuration status
+  ansible.builtin.stat:
     path: "{{ epel_repofile_path }}"
   register: epel_repofile_result
 
-- name: Check if CodeReady Builder repository is already enabled
+# CodeReady Builder repository management
+- name: Get list of enabled repositories
   ansible.builtin.command:
     cmd: subscription-manager repos --list-enabled
   register: enabled_repos
   changed_when: false
+  check_mode: false
 
-- name: Enable the CodeReady Builder repository
+- name: Enable CodeReady Builder repository
   ansible.builtin.command:
-    cmd: subscription-manager repos --enable codeready-builder-for-rhel-9-{{ ansible_architecture }}-rpms
-  when: "'codeready-builder-for-rhel-9-{{ ansible_architecture }}-rpms' not in enabled_repos.stdout_lines"
+    cmd: "subscription-manager repos --enable codeready-builder-for-rhel-9-{{ ansible_architecture }}-rpms"
+  when:
+    - "'codeready-builder-for-rhel-9-' ~ ansible_architecture ~ '-rpms' not in enabled_repos.stdout_lines"
   register: codeready_enable
   changed_when: "'enabled' in codeready_enable.stdout"
 
+# EPEL repository setup
 - name: Import EPEL GPG key
   ansible.builtin.rpm_key:
     state: present
-    key: "{{ remi_epel_gpg_key_url }}"
+    key: "{{ epel_gpg_key_url }}"
   register: result
   until: result is succeeded
   retries: 5
   delay: 10
   when: not epel_repofile_result.stat.exists
   ignore_errors: "{{ ansible_check_mode }}"
+  tags:
+    - epel
+    - security
 
 - name: Install EPEL release package
   ansible.builtin.dnf:
     name: "{{ epel_package_url }}"
     state: present
+    disable_gpg_check: false
   register: result
   until: result is succeeded
   retries: 5
   delay: 10
   when: not epel_repofile_result.stat.exists
   notify: Update package cache
+  tags:
+    - epel
+    - packages
